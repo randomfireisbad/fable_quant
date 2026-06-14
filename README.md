@@ -14,12 +14,12 @@ Open http://127.0.0.1:8000
 
 ## Sections
 
-The platform has three tabs. **Swing** is the statistical trading dashboard
+The platform has three tabs. **Analyze** is the statistical trading dashboard
 described below. **Long-Term** screens for 3-10x candidates using fundamentals
 (small base, revenue growth, margins, balance sheet, valuation room, insider
 ownership) and then has an LLM research current trends and catalysts to write a
 structured thesis per candidate (thesis, catalysts, risks, path to multiple,
-conviction). **Agent** is a research agent that pursues a goal you give it by
+conviction). **Refinement** is a research agent that pursues a goal you give it by
 calling the platform's tools — quotes, full statistical analysis, cross-ticker
 experiments (compare & backtest a whole universe in one call), fundamentals
 screen, pairs tests, web research — and writes a research memo; it can log

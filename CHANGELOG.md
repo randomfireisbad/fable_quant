@@ -24,6 +24,11 @@ The agent's system prompt now directs it to design and report experiments
 reminders that these backtests are in-sample sanity checks, not out-of-sample
 proof. Surfaced in the Agent tab placeholder/hint and the README.
 
+### Changed — UI
+
+- Renamed two tabs for clarity: **Swing → Analyze** and **Agent → Refinement**.
+  Internal section ids and `data-tab` keys are unchanged, so behavior is identical.
+
 ### Changed — performance & cleanup
 
 Commit `9d2a210`. All changes are **behavior-preserving** and were verified

@@ -24,7 +24,7 @@ def variance_ratio(logp: np.ndarray, q: int = 5) -> dict:
         return {"q": q, "vr": None, "z": None, "pValue": None}
     mu = r.mean()
     var1 = np.sum((r - mu) ** 2) / n
-    rq = np.array([logp[i] - logp[i - q] for i in range(q, len(logp))])
+    rq = logp[q:] - logp[:-q]
     m = (n - q + 1) * (1 - q / n)
     varq = np.sum((rq - q * mu) ** 2) / m
     vr = varq / (q * var1)

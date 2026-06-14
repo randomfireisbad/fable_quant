@@ -64,7 +64,6 @@ def _bootstrap_band(close, mu_annual: float, horizon: int = HORIZON_DAYS,
     drift. Returns (q10-q50, q90-q50) log-space offsets — a distribution-
     shaped 80% band capturing the fat tails and skew the lognormal misses
     (cf. Politis & Romano 1994 on block bootstrap for dependent series)."""
-    import numpy as np
     r = np.diff(np.log(np.asarray(close, dtype=float)))
     r = r[np.isfinite(r)]
     if len(r) < 120:

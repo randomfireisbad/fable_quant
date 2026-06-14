@@ -24,9 +24,6 @@ trader.start_scheduler()
 
 app = FastAPI(title="Fable Quant")
 
-_analysis_cache: dict[str, tuple[float, dict]] = {}
-_ANALYSIS_TTL = 600
-
 
 def _err(e: Exception):
     raise HTTPException(status_code=400, detail=str(e))

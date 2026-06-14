@@ -140,16 +140,22 @@ def discover(screen: str = "most_actives", count: int = 25) -> list[dict]:
     return out
 
 
-def quote(ticker: str) -> dict:
-    df = fetch_history(ticker, "6M")
-    last, prev = float(df["Close"].iloc[-1]), float(df["Close"].iloc[-2])
+def quote_from_closes(ticker: str, close: pd.Series) -> dict:
+    """Build a quote payload from an already-fetched close series, avoiding a
+    redundant network round trip when the caller already holds the data."""
+    s = close.dropna()
+    last, prev = float(s.iloc[-1]), float(s.iloc[-2])
     return {
         "ticker": ticker.upper(),
         "price": round(last, 2),
         "change": round(last - prev, 2),
         "changePct": round(100 * (last / prev - 1), 2),
-        "asOf": str(df.index[-1]),
+        "asOf": str(s.index[-1]),
     }
+
+
+def quote(ticker: str) -> dict:
+    return quote_from_closes(ticker, fetch_history(ticker, "6M")["Close"])
 
 
 def history_payload(ticker: str, range_key: str) -> dict:

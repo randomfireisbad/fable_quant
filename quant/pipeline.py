@@ -35,7 +35,7 @@ def run_analysis(ticker: str, force: bool = False, horizon: str = "medium") -> d
         return hit[1]
 
     close = data.closes(t, rng)
-    q = data.quote(t)
+    q = data.quote_from_closes(t, close)
 
     try:
         bench = data.closes("SPY", rng) if t != "SPY" else None

@@ -1,0 +1,13 @@
+fastapi>=0.110
+uvicorn>=0.29
+yfinance>=0.2.40
+pandas>=2.0
+numpy>=1.24
+scipy>=1.10
+statsmodels>=0.14
+arch>=6.0
+reportlab>=4.0
+requests>=2.31
+mcp>=1.0
+# optional, only for the opt-in live broker adapter (see quant/broker.py):
+# robin_stocks

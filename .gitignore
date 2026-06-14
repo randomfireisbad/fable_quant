@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Runtime config that can contain an API key / credentials
+data/llm_config.json
+
+# Runtime state written by the app (not source)
+data/order_queue.json
+data/portfolio.json
+data/trades.json
+data/improvement_log.json
+data/*.log
+
+# Generated reports
+*.pdf
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

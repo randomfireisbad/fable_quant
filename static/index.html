@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fable Quant</title>
+<link rel="stylesheet" href="app.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+<header class="topbar no-print">
+  <div class="topbar-left">
+    <div class="brand">Fable Quant</div>
+    <nav class="tabs" id="tabs">
+      <button data-tab="longterm">Long-Term</button>
+      <button data-tab="swing" class="active">Swing</button>
+      <button data-tab="agent">Agent</button>
+      <button data-tab="live">Live</button>
+    </nav>
+  </div>
+  <div class="topbar-right">
+    <form id="addForm" autocomplete="off">
+      <input id="tickerInput" placeholder="Add ticker (e.g. NVDA)" spellcheck="false">
+      <button type="submit" class="btn">Add</button>
+    </form>
+    <button id="llmBtn" class="btn ghost" title="LLM connection settings">LLM</button>
+    <button id="themeToggle" class="btn ghost" title="Toggle light/dark">Dark</button>
+  </div>
+</header>
+
+<main class="grid no-print tab-section" id="section-swing">
+  <!-- Panel: watchlist -->
+  <section class="panel" id="watchlistPanel">
+    <div class="panel-head"><h2>Watchlist</h2>
+      <div class="panel-actions">
+        <button id="wlAddBtn" class="btn ghost" title="Add a ticker">+ Ticker</button>
+        <button id="wlViewToggle" class="btn ghost" title="Toggle list/grid view">Grid</button>
+      </div>
+    </div>
+    <form id="wlAddForm" class="pairs-form hidden" autocomplete="off">
+      <input id="wlAddInput" placeholder="e.g. AMD" spellcheck="false">
+      <button class="btn" type="submit">Add</button>
+    </form>
+    <div class="wl-toolbar">
+      <button id="wlAnalyzeAll" class="btn btn-sm">Analyze all</button>
+      <select id="wlSort">
+        <option value="custom">Custom order (drag)</option>
+        <option value="score">Buy → Sell</option>
+        <option value="scoreAsc">Sell → Buy</option>
+        <option value="change">% change</option>
+        <option value="alpha">A–Z</option>
+      </select>
+    </div>
+    <div id="wlProgress" class="muted wl-progress"></div>
+    <ul id="watchlist" class="watchlist"></ul>
+  </section>
+
+  <!-- Panel: chart -->
+  <section class="panel" id="chartPanel">
+    <div class="panel-head">
+      <h2 id="chartTitle">Chart</h2>
+      <div class="range-group" id="rangeGroup">
+        <button data-range="1W">1W</button>
+        <button data-range="1M">1M</button>
+        <button data-range="6M">6M</button>
+        <button data-range="1Y" class="active">1Y</button>
+        <button data-range="2Y">2Y</button>
+        <button data-range="10Y">10Y</button>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+  </section>
+
+  <!-- Panel: rating / price target -->
+  <section class="panel" id="ratingPanel">
+    <div class="panel-head"><h2>Rating &amp; Target</h2>
+      <div class="panel-actions">
+        <div class="range-group" id="horizonGroup">
+          <button data-h="short" title="21 trading days, 1Y window">1M</button>
+          <button data-h="medium" class="active" title="63 trading days, 2Y window">3M</button>
+          <button data-h="long" title="126 trading days, 5Y window">6M</button>
+        </div>
+        <button id="ratingAnalyze" class="btn btn-sm">Analyze</button>
+      </div>
+    </div>
+    <div id="ratingBody" class="rating-body muted">Run an analysis to see the rating.</div>
+    <form id="ratingAddForm" class="pairs-form" autocomplete="off" style="margin-top:12px">
+      <input id="ratingAddInput" placeholder="Add ticker to watchlist" spellcheck="false">
+      <button class="btn ghost" type="submit">Add</button>
+    </form>
+  </section>
+
+  <!-- Panel: pairs -->
+  <section class="panel" id="pairsPanel">
+    <div class="panel-head"><h2>Pairs (Cointegration)</h2></div>
+    <form id="pairsForm" class="pairs-form" autocomplete="off">
+      <input id="pairA" placeholder="Ticker A" spellcheck="false">
+      <input id="pairB" placeholder="Ticker B" spellcheck="false">
+      <button class="btn" type="submit">Test</button>
+    </form>
+    <div id="pairsBody" class="muted">Engle-Granger test on a candidate pair.</div>
+  </section>
+
+  <!-- Panel: analysis -->
+  <section class="panel" id="analysisPanel">
+    <div class="panel-head">
+      <h2>Analysis</h2>
+      <div class="panel-actions">
+        <button id="runAnalysis" class="btn">Analyze</button>
+        <button id="viewReport" class="btn ghost" disabled>Report</button>
+        <a id="pdfLink" class="btn ghost disabled">PDF</a>
+      </div>
+    </div>
+    <div id="analysisBody" class="analysis-body muted">
+      Select a ticker and press Analyze. Models: time-series &amp; 12-1 momentum,
+      ADF / variance-ratio / OU mean reversion, GARCH volatility, and a
+      three-factor regression.
+    </div>
+  </section>
+</main>
+
+<!-- ===================== LONG-TERM SECTION ===================== -->
+<main class="grid-lt no-print tab-section hidden" id="section-longterm">
+  <section class="panel" id="ltScreenPanel">
+    <div class="panel-head">
+      <h2>Multibagger Screen (3-10x candidates)</h2>
+      <div class="panel-actions">
+        <button id="ltUseWatchlist" class="btn ghost">Use watchlist</button>
+        <button id="ltRunScreen" class="btn">Screen</button>
+      </div>
+    </div>
+    <form id="ltForm" autocomplete="off">
+      <input id="ltTickers" placeholder="Tickers, comma-separated (e.g. PLTR, SOFI, IONQ)" style="width:100%">
+    </form>
+    <div id="ltScreenBody" class="muted" style="margin-top:10px">
+      Fundamentals-based screen: small base, revenue growth, margins, balance
+      sheet, valuation room, insider ownership, 52-week momentum. Then generate
+      an LLM thesis with live market research per candidate.
+    </div>
+  </section>
+  <section class="panel" id="ltResearchPanel">
+    <div class="panel-head"><h2>Research Theses</h2>
+      <span id="llmStatus" class="muted"></span></div>
+    <div id="ltResearchBody" class="muted">No saved theses yet. Run the screen,
+      then press "Thesis" on a candidate.</div>
+  </section>
+</main>
+
+<!-- ===================== AGENT SECTION ===================== -->
+<main class="grid-agent no-print tab-section hidden" id="section-agent">
+  <section class="panel" id="agentRunPanel">
+    <div class="panel-head"><h2>Research Agent</h2>
+      <span id="agentLlmStatus" class="muted"></span></div>
+    <form id="agentForm" autocomplete="off">
+      <textarea id="agentGoal" rows="3" placeholder="Research goal, e.g.: Screen semiconductor names for swing setups, verify with the statistical models, and paper-trade the best long with 5% of cash."></textarea>
+      <div class="panel-actions" style="margin-top:8px">
+        <label class="muted">Max steps
+          <input id="agentSteps" type="number" value="10" min="1" max="20" style="width:60px"></label>
+        <button class="btn" type="submit" id="agentRunBtn">Run agent</button>
+      </div>
+    </form>
+    <div id="agentTranscript" class="transcript muted">The agent has access to:
+      quotes, full statistical analysis, fundamentals screen, pairs tests, web
+      research, and the paper portfolio. It never places real orders.</div>
+    <div id="agentMemo" class="memo hidden"></div>
+  </section>
+  <section class="panel" id="portfolioPanel">
+    <div class="panel-head"><h2>Paper Portfolio</h2>
+      <div class="panel-actions">
+        <button id="pfRefresh" class="btn ghost">Refresh</button>
+        <button id="pfReset" class="btn ghost">Reset</button>
+      </div>
+    </div>
+    <div id="portfolioBody" class="muted">Loading…</div>
+    <form id="pfTradeForm" class="pairs-form" autocomplete="off" style="margin-top:10px">
+      <input id="pfTicker" placeholder="Ticker" style="width:90px">
+      <select id="pfSide"><option value="buy">Buy</option><option value="sell">Sell</option></select>
+      <input id="pfQty" type="number" placeholder="Qty" min="0.01" step="any" style="width:80px">
+      <button class="btn" type="submit">Paper trade</button>
+    </form>
+  </section>
+
+  <section class="panel" id="traderPanel" style="grid-column: 1 / -1">
+    <div class="panel-head"><h2>Day Trader Desk (Paper)</h2>
+      <div class="panel-actions">
+        <span id="traderStatus" class="muted"></span>
+        <button id="traderRunNow" class="btn btn-sm">Run session now</button>
+        <button id="traderToggle" class="btn ghost btn-sm">Enable</button>
+      </div>
+    </div>
+    <div class="muted" style="font-size:12px;margin-bottom:8px">
+      An autonomous agent practicing on the paper portfolio: each session it
+      reviews positions, scans its universe with the statistical models, trades
+      within risk limits (max 25% per position, 10% cash floor, vol-scaled
+      sizing), and journals what it learned. When enabled, sessions run on a
+      schedule during US market hours. Quotes are ~15min delayed, so it trades
+      intraday-swing setups, not scalps. Paper money only.
+    </div>
+    <div class="pairs-form" style="flex-wrap:wrap">
+      <label class="muted">Session every
+        <select id="traderInterval">
+          <option value="15">15 min</option>
+          <option value="30" selected>30 min</option>
+          <option value="60">60 min</option>
+          <option value="120">2 h</option>
+        </select></label>
+      <input id="traderUniverse" placeholder="Universe (comma-separated tickers)" style="flex:1;min-width:220px">
+      <button id="traderSave" class="btn ghost btn-sm" type="button">Save</button>
+    </div>
+    <div id="traderJournal" class="transcript" style="max-height:340px">
+      <span class="muted">No sessions yet. Press "Run session now" to start the first one.</span>
+    </div>
+  </section>
+
+  <section class="panel" id="perfPanelAgent" style="grid-column: 1 / -1">
+    <div class="panel-head"><h2>Model Improvement Loop</h2>
+      <button id="perfRefreshAgent" class="btn ghost btn-sm">Refresh</button>
+    </div>
+    <div class="muted" style="font-size:12px;margin-bottom:8px">
+      Every trade records the model's signals at entry. Closed round trips are
+      attributed by rating, score, and source below — the evidence base for
+      improving the models. Ask Claude (in Cowork or via the connector) to
+      review this; changes only happen when the sample size justifies them, and
+      every change is recorded in the improvement log with its evidence.
+    </div>
+    <div class="analysis-grid">
+      <div><div id="perfAgent" class="muted">Loading…</div></div>
+      <div><h3 class="trades-h" style="margin-top:0">Improvement log</h3>
+        <div id="perfLogAgent" class="muted">Loading…</div></div>
+    </div>
+  </section>
+
+  <section class="panel" id="connectorPanel" style="grid-column: 1 / -1">
+    <div class="panel-head"><h2>Claude Desktop Connector (MCP)</h2>
+      <button id="connectorCopy" class="btn ghost btn-sm">Copy config</button>
+    </div>
+    <div class="muted" style="font-size:12px; margin-bottom:8px">
+      Connect Claude Desktop to this platform: Claude gets the research tools
+      (analyze, screen, pairs, quotes, paper portfolio) and can queue order
+      proposals into the Live tab. Order approval and broker mode are
+      deliberately not exposed. Setup: Claude Desktop → Settings → Developer →
+      Edit Config, paste the JSON below into claude_desktop_config.json, and
+      restart Claude Desktop.
+    </div>
+    <pre id="connectorConfig" class="connector-config">Loading…</pre>
+    <div id="connectorStatus" class="muted" style="font-size:12px"></div>
+  </section>
+</main>
+
+<!-- ===================== LIVE TRADING SECTION ===================== -->
+<main class="grid-agent no-print tab-section hidden" id="section-live">
+  <section class="panel" id="orderQueuePanel">
+    <div class="panel-head"><h2>Order Approval Queue</h2>
+      <div class="panel-actions">
+        <span id="brokerStatus" class="muted"></span>
+        <button id="modeToggle" class="btn ghost btn-sm">Switch to live</button>
+        <button id="oqRefresh" class="btn ghost btn-sm">Refresh</button>
+      </div>
+    </div>
+    <div class="muted" style="font-size:12px;margin-bottom:8px">
+      Strategies, the research agent, and Claude can propose orders here.
+      Nothing executes until you approve it. Approved orders go to the paper
+      portfolio unless live trading is deliberately enabled on the backend.
+    </div>
+    <form id="oqProposeForm" class="pairs-form" autocomplete="off">
+      <input id="oqTicker" placeholder="Ticker" style="width:90px">
+      <select id="oqSide"><option value="buy">Buy</option><option value="sell">Sell</option></select>
+      <input id="oqQty" type="number" placeholder="Qty" min="0.01" step="any" style="width:80px">
+      <input id="oqRationale" placeholder="Rationale" style="flex:1">
+      <button class="btn ghost" type="submit">Propose</button>
+    </form>
+    <div id="orderQueueBody" class="muted">Loading…</div>
+  </section>
+  <section class="panel" id="orderHistoryPanel">
+    <div class="panel-head"><h2>Decision History</h2></div>
+    <div id="orderHistoryBody" class="muted">No decisions yet.</div>
+  </section>
+
+  <section class="panel" id="perfPanelLive" style="grid-column: 1 / -1">
+    <div class="panel-head"><h2>Model Improvement Loop</h2>
+      <button id="perfRefreshLive" class="btn ghost btn-sm">Refresh</button>
+    </div>
+    <div class="muted" style="font-size:12px;margin-bottom:8px">
+      Outcomes of approved orders feed the same attribution as the paper desk —
+      live decisions and paper practice build one evidence base.
+    </div>
+    <div class="analysis-grid">
+      <div><div id="perfLive" class="muted">Loading…</div></div>
+      <div><h3 class="trades-h" style="margin-top:0">Improvement log</h3>
+        <div id="perfLogLive" class="muted">Loading…</div></div>
+    </div>
+  </section>
+</main>
+
+<!-- Report view (print-optimized) -->
+<section id="reportView" class="report hidden">
+  <div class="report-actions no-print">
+    <button id="printReport" class="btn">Print / Save PDF</button>
+    <button id="closeReport" class="btn ghost">Back to dashboard</button>
+  </div>
+  <div id="reportContent"></div>
+</section>
+
+<!-- LLM connection modal -->
+<div id="llmModal" class="modal-overlay hidden">
+  <div class="modal">
+    <h2>LLM Connection</h2>
+    <label>Provider
+      <select id="llmProvider">
+        <option value="">Auto (Anthropic if key set, else Ollama)</option>
+        <option value="anthropic">Anthropic (Claude) — web research enabled</option>
+        <option value="ollama">Ollama (local model) — no web access</option>
+      </select></label>
+    <label>Anthropic API key
+      <input id="llmKey" type="password" placeholder="sk-ant-…" autocomplete="off"></label>
+    <label>Anthropic model
+      <input id="llmModel" placeholder="claude-sonnet-4-6"></label>
+    <label>Ollama URL
+      <input id="llmOllamaUrl" placeholder="http://localhost:11434"></label>
+    <label>Ollama model
+      <input id="llmOllamaModel" placeholder="qwen2.5:14b (any tool-capable model)"></label>
+    <div id="llmModalStatus" class="muted"></div>
+    <p class="muted modal-note">Stored locally in data/llm_config.json on this
+      machine and sent only to the provider you select. Leave a field blank to
+      keep its current value; enter a single space to clear it.</p>
+    <div class="panel-actions">
+      <button id="llmSave" class="btn">Save &amp; test</button>
+      <button id="llmClose" class="btn ghost">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script src="performance.js"></script>
+<script src="longterm.js"></script>
+<script src="agent.js"></script>
+<script src="live.js"></script>
+</body>
+</html>

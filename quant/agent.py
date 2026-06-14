@@ -27,8 +27,17 @@ Rules:
 - You can place paper trades directly, and may PROPOSE live orders via \
 propose_live_order — but you can never execute live orders; a human reviews \
 every proposal. Size positions sensibly vs available cash and explain each.
-- Finish with a structured research memo: GOAL, FINDINGS, ACTIONS TAKEN (if \
-any), CANDIDATES (ticker / direction / rationale / key stats), RISKS, NEXT STEPS.
+- When comparing several names, run an EXPERIMENT rather than picking ad hoc: \
+state a hypothesis, then use compare_tickers (ranked full analysis across a \
+universe) or backtest_experiment (which signal carried edge across the \
+universe) instead of many separate analyze_ticker calls. Report a compact \
+comparison table with the actual numbers.
+- Backtests here are IN-SAMPLE walk-forward sanity checks, not out-of-sample \
+proof, and small universes overstate edge; for realized results call \
+performance_review and respect its sample-size warnings (n < 30 = noise).
+- Finish with a structured research memo: GOAL, HYPOTHESIS (if an experiment), \
+FINDINGS (with the comparison table), ACTIONS TAKEN (if any), CANDIDATES \
+(ticker / direction / rationale / key stats), RISKS, NEXT STEPS.
 """
 
 _J = lambda o: json.dumps(o, default=str)
@@ -69,6 +78,14 @@ def _tools_spec() -> list[dict]:
         {"name": "analyze_ticker",
          "description": "Run the full statistical suite (momentum, mean reversion, GARCH vol, factor regression) on a ticker. Returns scores, rating, and 3-month price target.",
          "input_schema": S({"ticker": str_p}, ["ticker"])},
+        {"name": "compare_tickers",
+         "description": "Run the full statistical analysis across MANY tickers (up to 12) and return a single ranked comparison: rating, composite + component scores, 3-month expected return, and each name's in-sample backtest Sharpe. Use this instead of many separate analyze_ticker calls when comparing a universe.",
+         "input_schema": S({"tickers": {"type": "array", "items": str_p},
+                            "horizon": {"type": "string",
+                                        "enum": ["short", "medium", "long"]}}, ["tickers"])},
+        {"name": "backtest_experiment",
+         "description": "Run the walk-forward backtest across MANY tickers (up to 15) and aggregate per strategy (tsmom, tsmomVolScaled, meanrev vs buy-and-hold): mean/median Sharpe, mean annual return, and how many names each strategy beat buy-and-hold on. Use to test which signal carried edge across a universe. In-sample — treat as hypothesis generation, not proof.",
+         "input_schema": S({"tickers": {"type": "array", "items": str_p}}, ["tickers"])},
         {"name": "screen_fundamentals",
          "description": "Fundamentals + multibagger screen (0-100) for up to 10 tickers.",
          "input_schema": S({"tickers": {"type": "array", "items": str_p}}, ["tickers"])},
@@ -108,6 +125,89 @@ def _tools_spec() -> list[dict]:
     ]
 
 
+def _compare_tickers(tickers: list, horizon: str = "medium") -> dict:
+    """Run the full analysis across several names and return one ranked table.
+    Built entirely on run_analysis — no separate evaluation model."""
+    from .pipeline import run_analysis
+    if horizon not in ("short", "medium", "long"):
+        horizon = "medium"
+    rows, errors, seen = [], [], []
+    for raw in (tickers or [])[:12]:
+        t = str(raw).upper().strip()
+        if not t or t in seen:
+            continue
+        seen.append(t)
+        try:
+            a = run_analysis(t, horizon=horizon)
+            c, pt = a["composite"], a["priceTarget"]
+            bt = a.get("backtest") or {}
+            strat_sharpes = [bt[k]["sharpe"] for k in ("tsmom", "tsmomVolScaled", "meanrev")
+                             if isinstance(bt.get(k), dict) and bt[k].get("sharpe") is not None]
+            rows.append({
+                "ticker": t, "rating": c["rating"], "score": c["score"],
+                "components": c["components"],
+                "expRet3moPct": pt["expectedReturnPct"], "target": pt["target"],
+                "spot": pt["spot"],
+                "btBestSharpe": round(max(strat_sharpes), 3) if strat_sharpes else None,
+                "btBuyHoldSharpe": (bt.get("buyHold") or {}).get("sharpe"),
+            })
+        except Exception as e:
+            errors.append({"ticker": t, "error": str(e)[:120]})
+    rows.sort(key=lambda r: (r["score"] is None, -(r["score"] or 0.0)))
+    return {"horizon": horizon, "n": len(rows), "ranked": rows, "errors": errors,
+            "note": "Ranked by composite score (desc). Backtest Sharpes are "
+                    "IN-SAMPLE walk-forward on each name's own 5y history — a "
+                    "sanity check, not out-of-sample proof."}
+
+
+def _backtest_experiment(tickers: list) -> dict:
+    """Aggregate the walk-forward backtest across many names, per strategy, to
+    test which signal carried edge across the universe. Built on backtest.run."""
+    import statistics as st
+
+    from . import backtest, data
+    STRATS = ("tsmom", "tsmomVolScaled", "meanrev")
+    per = {s: {"sharpe": [], "annRet": [], "beat": 0} for s in STRATS}
+    bh, names, errors = [], [], []
+    for raw in (tickers or [])[:15]:
+        t = str(raw).upper().strip()
+        if not t or t in names:
+            continue
+        try:
+            bt = backtest.run(data.closes(t, "5Y"))
+        except Exception as e:
+            errors.append({"ticker": t, "error": str(e)[:120]})
+            continue
+        if not bt.get("ok"):
+            errors.append({"ticker": t, "note": bt.get("note", "no backtest")})
+            continue
+        names.append(t)
+        bh_s = (bt.get("buyHold") or {}).get("sharpe")
+        if bh_s is not None:
+            bh.append(bh_s)
+        for s in STRATS:
+            m = bt.get(s) or {}
+            if m.get("sharpe") is not None:
+                per[s]["sharpe"].append(m["sharpe"])
+                if m.get("annReturn") is not None:
+                    per[s]["annRet"].append(m["annReturn"])
+                if bh_s is not None and m["sharpe"] > bh_s:
+                    per[s]["beat"] += 1
+
+    def agg(xs):
+        return None if not xs else {"mean": round(st.mean(xs), 3),
+                                    "median": round(st.median(xs), 3), "n": len(xs)}
+    by = {s: {"sharpe": agg(per[s]["sharpe"]), "annReturn": agg(per[s]["annRet"]),
+              "beatBuyHold": f'{per[s]["beat"]}/{len(names)}'} for s in STRATS}
+    by["buyHold"] = {"sharpe": agg(bh)}
+    return {"nNames": len(names), "universe": names, "byStrategy": by,
+            "errors": errors,
+            "caveats": "In-sample walk-forward on each name's own history "
+                       "(1-day signal lag, 5bp cost). Small universes and "
+                       "in-sample fits overstate edge — a hypothesis generator, "
+                       "not proof (cf. Cederburg et al. 2020)."}
+
+
 def _execute(name: str, args: dict) -> str:
     from .pipeline import run_analysis
     try:
@@ -115,6 +215,10 @@ def _execute(name: str, args: dict) -> str:
             return _J(data.quote(args["ticker"]))
         if name == "analyze_ticker":
             return _J(_condense_analysis(run_analysis(args["ticker"])))
+        if name == "compare_tickers":
+            return _J(_compare_tickers(args["tickers"], args.get("horizon", "medium")))
+        if name == "backtest_experiment":
+            return _J(_backtest_experiment(args["tickers"]))
         if name == "screen_fundamentals":
             return _J(fundamentals.screen(args["tickers"][:10]))
         if name == "pairs_test":

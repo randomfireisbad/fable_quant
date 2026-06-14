@@ -152,7 +152,7 @@
     <div class="panel-head"><h2>Research Agent</h2>
       <span id="agentLlmStatus" class="muted"></span></div>
     <form id="agentForm" autocomplete="off">
-      <textarea id="agentGoal" rows="3" placeholder="Research goal, e.g.: Screen semiconductor names for swing setups, verify with the statistical models, and paper-trade the best long with 5% of cash."></textarea>
+      <textarea id="agentGoal" rows="3" placeholder="Research goal, e.g.: Compare AMD, NVDA, AVGO, TSM and MU — rank them with the models and test whether momentum or mean-reversion carried more edge across the group, then paper-trade the strongest long with 5% of cash."></textarea>
       <div class="panel-actions" style="margin-top:8px">
         <label class="muted">Max steps
           <input id="agentSteps" type="number" value="10" min="1" max="20" style="width:60px"></label>
@@ -160,8 +160,9 @@
       </div>
     </form>
     <div id="agentTranscript" class="transcript muted">The agent has access to:
-      quotes, full statistical analysis, fundamentals screen, pairs tests, web
-      research, and the paper portfolio. It never places real orders.</div>
+      quotes, full statistical analysis, cross-ticker experiments
+      (compare_tickers, backtest_experiment), fundamentals screen, pairs tests,
+      web research, and the paper portfolio. It never places real orders.</div>
     <div id="agentMemo" class="memo hidden"></div>
   </section>
   <section class="panel" id="portfolioPanel">

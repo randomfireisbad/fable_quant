@@ -5,6 +5,25 @@ All notable changes to Fable Quant are documented here. Format loosely follows
 
 ## [Unreleased] — 2026-06-14
 
+### Added — agent-driven experiments
+
+Two batch tools for the research agent (Agent tab), built entirely on the
+existing analysis/backtest — no new evaluation model:
+
+- **`compare_tickers(tickers, horizon)`** — runs the full statistical analysis
+  across up to 12 names and returns one ranked table (rating, composite +
+  component scores, 3-month expected return, each name's in-sample backtest
+  Sharpe). Replaces issuing many separate `analyze_ticker` calls.
+- **`backtest_experiment(tickers)`** — runs the walk-forward backtest across up
+  to 15 names and aggregates per strategy (tsmom / tsmomVolScaled / meanrev vs
+  buy-and-hold): mean/median Sharpe, mean annual return, and how many names each
+  strategy beat buy-and-hold on.
+
+The agent's system prompt now directs it to design and report experiments
+(hypothesis → run across the universe → comparison table), with explicit
+reminders that these backtests are in-sample sanity checks, not out-of-sample
+proof. Surfaced in the Agent tab placeholder/hint and the README.
+
 ### Changed — performance & cleanup
 
 Commit `9d2a210`. All changes are **behavior-preserving** and were verified

@@ -20,7 +20,8 @@ described below. **Long-Term** screens for 3-10x candidates using fundamentals
 ownership) and then has an LLM research current trends and catalysts to write a
 structured thesis per candidate (thesis, catalysts, risks, path to multiple,
 conviction). **Agent** is a research agent that pursues a goal you give it by
-calling the platform's tools — quotes, full statistical analysis, fundamentals
+calling the platform's tools — quotes, full statistical analysis, cross-ticker
+experiments (compare & backtest a whole universe in one call), fundamentals
 screen, pairs tests, web research — and writes a research memo; it can log
 trades to a paper portfolio ($100k starting cash, live mark-to-market P&L) but
 never places real orders.
